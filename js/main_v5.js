@@ -38,67 +38,6 @@ import { GAME_CONFIG, formatDate, formatTime, formatMoney } from './engine/const
 console.log('All imports loaded successfully');
 
 const canvas = document.getElementById('c');
-const R = new Renderer(canvas);
-const I = new InputManager();
-const AL = new AssetLoader();
-const A = new AudioManager();
-const SM = new SaveManager();
-const UI = new UISystem(R, I);
-const VM = new VehicleManager();
-const CM = new CattleManager();
-const CE = new CropEngine();
-const EM = new EmployeeManager();
-const WM = new WorldManager();
-const IM = new IrrigationManager();
-const TM = new TruffleManager();
-const MG = new MinigameManager(R, I, A);
-
-let running = true, last = 0, acc = 0, dtFix = 1 / 60;
-const P = { pos: { x: GAME_CONFIG.STARTING_POSITION.x * 16, y: GAME_CONFIG.STARTING_POSITION.y * 16 }, dir: 'down', stm: GAME_CONFIG.PLAYER_MAX_STAMINA, mstm: GAME_CONFIG.PLAYER_MAX_STAMINA, mood: 'energetic', inv: Array(40).fill().map(() => ({ id: null, q: 0 })), hb: ['hoe_worn', 'watering_can', 'seed_wheat', 'seed_tomato', 'silicon_sealant', 'fence_wire', 'gate_kit', null], hbs: 0, carry: null, tool: 'hoe_worn', veh: null };
-const T = { h: 7, m: 0, d: 1, s: 'spring', y: 1, dw: 'mon', ts: GAME_CONFIG.BASE_TIME_SCALE };
-const W = { t: 'clear', i: 0, tmp: 22, hum: 45, ws: 5, wd: 'down', pre: 0, cc: 10, fc: [{ do: 0, t: 'clear', mn: 15, mx: 25, pc: 10 }, { do: 1, t: 'cloudy', mn: 14, mx: 22, pc: 30 }, { do: 2, t: 'rain', mn: 12, mx: 18, pc: 80 }] };
-let icd = 0, pa = 0, gt = 0;
-
-console.log('=== MAIN.JS LOADED ===');
-
-// Main entry point - Cosy Harvest: Pelican Hollow
-
-window.onerror = (msg, src, ln, col, err) => {
-  const dbg = document.getElementById('dbg');
-  if (dbg) dbg.textContent = 'ERROR: ' + msg + '\n' + err?.stack;
-  console.error(msg, err);
-  return true;
-};
-
-window.addEventListener('unhandledrejection', e => {
-  const dbg = document.getElementById('dbg');
-  if (dbg) dbg.textContent = 'PROMISE ERROR: ' + (e.reason?.message || e.reason);
-  console.error(e.reason);
-});
-
-console.log('Starting imports...');
-
-// Main entry point - Cosy Harvest: Pelican Hollow
-
-import { Renderer } from './engine/rendering/Renderer.js';
-import { InputManager } from './engine/input/InputManager.js';
-import { AssetLoader } from './engine/utils/AssetLoader.js';
-import { AudioManager } from './engine/audio/AudioManager.js';
-import { SaveManager } from './engine/utils/SaveManager.js';
-import { UISystem } from './game/ui/UISystem.js';
-import { VehicleManager } from './game/systems/VehicleSystem.js';
-import { CattleManager } from './game/systems/CattleSystem.js';
-import { CropEngine } from './game/systems/CropSystem.js';
-import { EmployeeManager } from './game/systems/EmployeeSystem.js';
-import { WorldManager } from './game/world/WorldManager.js';
-import { IrrigationManager } from './game/systems/IrrigationSystem.js';
-import { TruffleManager } from './game/systems/TruffleSystem.js';
-import { MinigameManager } from './game/minigames/Minigames.js';
-import { GAME_CONFIG, formatDate, formatTime, formatMoney } from './engine/constants.js';
-
-console.log('All imports loaded successfully');
-
-const canvas = document.getElementById('c');
 console.log('Canvas:', canvas);
 const R = new Renderer(canvas);
 console.log('Renderer created');
@@ -197,13 +136,13 @@ function loop(now) {
 }
 
 function upd(dt) {
-  I.upd();
+  I.update();
   if (icd > 0) icd -= dt;
   if (!P.veh) updPl(dt); else updVeh(dt);
   updCam(dt); updTime(dt); R.updateWeather(dt); R.updateParticles(dt); pa += dt; gt += dt;
-  R.lstnr({ x: P.pos.x, y: P.pos.y });
+  A.lstnr({ x: P.pos.x, y: P.pos.y });
   WM.updLoaded(P.pos);
-  CM.upd(dt, T.h * 60 + T.m);
+  CM.update(dt, T.h * 60 + T.m);
   CE.upd(dt, { pre: W.pre, tmp: W.tmp, hum: W.hum }, T.h * 60 + T.m);
   EM.upd(dt, T.h, T.d);
   IM.upd(dt, W.pre);
@@ -224,7 +163,7 @@ function updPl(dt) {
     if (walk(tx, ty)) { P.pos.x = nx; P.pos.y = ny; if (Math.random() < dt * 3) A.play('foot_grass', { v: .1, pos: { x: P.pos.x, y: P.pos.y } }); }
   } else P.stm = Math.min(P.mstm, P.stm + GAME_CONFIG.PLAYER_STAMINA_REGEN * dt * 2);
 }
-function walk(tx, ty) { if (tx < 0 || tx >= 60 || ty < 0 || ty >= 44) return false; const t = ['water', 'water_ripple', 'log_cabin_wall', 'chimney', 'stone', 'fence_post', 'fence_wire', 'gate_closed']; return !t.includes(WM.getTile(tx, ty)); }
+function walk(tx, ty) { if (tx < 0 || tx >= 60 || ty < 0 || ty >= 44) return false; const t = ['water', 'water_ripple', 'log_cabin_wall', 'chimney', 'stone', 'fence_post', 'fence_wire', 'gate_closed']; return !t.includes(WM.getTile(tx * 16, ty * 16)); }
 function updVeh(dt) { if (!P.veh) return; const v = VM.get(P.veh); if (!v || !v.run) return; const th = I.down('move_up') ? 1 : I.down('move_down') ? -0.5 : 0, br = I.down('move_down') && th <= 0 ? 1 : 0, st = (I.down('move_right') ? 1 : 0) - (I.down('move_left') ? 1 : 0), gu = I.pressed('vgup'), gd = I.pressed('vgdn'); VM.update(P.veh, { thr: th, brk: br, str: st, gearUp: gu, gearDown: gd }, dt); const v2 = VM.get(P.veh); P.pos = v2.pos; P.dir = v2.dir; }
 function updCam(dt) { R.setCameraTarget(P.pos.x, P.pos.y); R.updateCamera(dt); }
 function updTime(dt) { const gm = dt * T.ts; T.m += gm; while (T.m >= 60) { T.m -= 60; T.h++; if (T.h >= 24) { T.h = 0; advDay(); } } let tod = 'morning'; if (T.h >= 5 && T.h < 7) tod = 'dawn'; else if (T.h >= 7 && T.h < 12) tod = 'morning'; else if (T.h >= 12 && T.h < 14) tod = 'noon'; else if (T.h >= 14 && T.h < 17) tod = 'afternoon'; else if (T.h >= 17 && T.h < 19) tod = 'evening'; else if (T.h >= 19 && T.h < 22) tod = 'night'; else tod = 'midnight'; R.setTimeOfDay(tod, T.h, T.m); TM.setSea(T.s, T.d, T.y); }
@@ -245,11 +184,12 @@ function rend(alp) {
 }
 function rendW() {
   const ts = 16, cz = R.getCZ(), sc = R.getS(), cx = R.getCX(), cy = R.getCY();
-  const stx = Math.floor(cx - 1), etx = Math.ceil(cx + R.getW() / (ts * sc * cz) + 1), sty = Math.floor(cy - 1), ety = Math.ceil(cy + R.getH() / (ts * sc * cz) + 1);
+  const stx = Math.floor(cx / ts) - 1, etx = Math.ceil((cx + R.getW() / (sc * cz)) / ts) + 1;
+  const sty = Math.floor(cy / ts) - 1, ety = Math.ceil((cy + R.getH() / (sc * cz)) / ts) + 1;
   for (let ty = sty; ty < ety; ty++) for (let tx = stx; tx < etx; tx++) {
     const p = R.worldToScreen(tx * ts, ty * ts);
     if (p.x > -ts * sc * cz && p.x < R.getW() && p.y > -ts * sc * cz && p.y < R.getH()) {
-      const t = WM.getTile(tx, ty);
+      const t = WM.getTile(tx * ts, ty * ts);
       const cv = R.getOrCreateTileCanvas(t);
       R.getCTX().drawImage(cv, p.x, p.y, ts * sc * cz, ts * sc * cz);
     }
@@ -257,8 +197,9 @@ function rendW() {
 }
 function rendEnt(alp) {
   if (!P.veh) R.drawAnimatedSprite('pl', (I.mv().x || I.mv().y ? 'walk_' : 'idle_') + P.dir, pa * 1000, P.pos.x, P.pos.y, P.dir, { sc: 1.5 });
-  for (const v of VM.all()) { const p = R.worldToScreen(v.pos.x, v.pos.y), x = R.getCTX(), s = R.getS() * cz; x.fillStyle = '#466d33'; x.fillRect(p.x - 24 * s, p.y - 16 * s, 48 * s, 32 * s); }
-  for (const c of CM.all()) { const p = R.worldToScreen(c.pos.x, c.pos.y), x = R.getCTX(), s = R.getS() * cz; x.fillStyle = '#1a1a1a'; x.fillRect(p.x - 16 * s, p.y - 12 * s, 32 * s, 24 * s); }
+  const scale = R.getS() * R.getCZ();
+  for (const v of VM.all()) { const p = R.worldToScreen(v.pos.x, v.pos.y), x = R.getCTX(), s = scale; x.fillStyle = '#466d33'; x.fillRect(p.x - 24 * s, p.y - 16 * s, 48 * s, 32 * s); }
+  for (const c of CM.all()) { const p = R.worldToScreen(c.pos.x, c.pos.y), x = R.getCTX(), s = scale; x.fillStyle = '#1a1a1a'; x.fillRect(p.x - 16 * s, p.y - 12 * s, 32 * s, 24 * s); }
 }
 function rendUI() {
   const x = R.getCTX(), w = R.getW(), h = R.getH(), sc = R.getS();
@@ -282,7 +223,7 @@ function rendUI() {
   const int = nearInt(); if (int.length) { const t = '[E] ' + int[0], fs = 14 * sc; x.font = fs + 'px "Courier New",monospace'; const tw = x.measureText(t).width, pw = tw + 20 * sc, ph = 32 * sc, px = (w - pw) / 2, py = h - 48 * sc - 32 * sc - 10 * sc; x.fillStyle = '#1a1a1a'; x.fillRect(px, py, pw, ph); x.strokeStyle = '#cd953c'; x.lineWidth = 2 * sc; x.strokeRect(px, py, pw, ph); x.fillStyle = '#fde047'; x.font = fs + 'px "Courier New",monospace'; x.fillText(t, px + 10 * sc, py + 8 * sc); }
   const it = P.hb[P.hbs]; if (it && !int.length) { const t = it.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase()), fs = 12 * sc; x.font = fs + 'px "Courier New",monospace'; const tw = x.measureText(t).width, bw = tw + 20 * sc, bh = 24 * sc, bx = (w - bw) / 2, by = h - 48 * sc - 32 * sc - 10 * sc - bh - 4 * sc; x.fillStyle = '#2d1f1a'; x.fillRect(bx, by, bw, bh); x.strokeStyle = '#7c4d2b'; x.lineWidth = sc; x.strokeRect(bx, by, bw, bh); x.fillStyle = '#f5e6d3'; x.font = fs + 'px "Courier New",monospace'; x.fillText(t, bx + 10 * sc, by + 6 * sc); }
 }
-function nearInt() { const r = [], px = Math.floor(P.pos.x / 16), py = Math.floor(P.pos.y / 16); for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) { const tx = px + dx, ty = py + dy, t = WM.getTile(tx, ty); if (t === 'door_closed') r.push('Farmhouse Door'); if (t === 'concrete' && tx === 57 && ty === 15) r.push('Creek Pump'); if (t === 'window') r.push('Window'); if (t === 'gate_closed') r.push('Gate'); } if (!P.veh) for (const v of VM.all()) { const d = Math.hypot(v.pos.x - P.pos.x, v.pos.y - P.pos.y); if (d < 50) r.push(v.type.replace(/_/g, ' ')); } return r; }
+function nearInt() { const r = [], px = Math.floor(P.pos.x / 16), py = Math.floor(P.pos.y / 16); for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) { const tx = px + dx, ty = py + dy, t = WM.getTile(tx * 16, ty * 16); if (t === 'door_closed') r.push('Farmhouse Door'); if (t === 'concrete' && tx === 57 && ty === 15) r.push('Creek Pump'); if (t === 'window') r.push('Window'); if (t === 'gate_closed') r.push('Gate'); } if (!P.veh) for (const v of VM.all()) { const d = Math.hypot(v.pos.x - P.pos.x, v.pos.y - P.pos.y); if (d < 50) r.push(v.type.replace(/_/g, ' ')); } return r; }
 
 I.on('interact', p => { if (p && icd <= 0) { icd = .3; const t = nearInt()[0]; if (t === 'Farmhouse Door') A.play('ui_ok', { v: .2 }); else if (t === 'Creek Pump') A.play('ui_ok', { v: .2 }); } });
 I.on('tool_use', p => { if (p) { const id = P.hb[P.hbs] || P.tool; if (id) { A.play('hoe_sw', { v: .3, pos: { x: P.pos.x, y: P.pos.y } }); console.log('tool:', id); } } });
