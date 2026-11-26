@@ -1,0 +1,18 @@
+{
+  "name": "cosy-harvest-pelican-hollow",
+  "version": "0.1.0",
+  "description": "Cosy Harvest: Pelican Hollow - A hyper-realistic farming simulation",
+  "main": "dist/main.js",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc && vite build",
+    "preview": "vite preview",
+    "lint": "eslint src --ext .ts"
+  },
+  "devDependencies": {
+    "typescript": "^5.3.0",
+    "vite": "^5.0.0",
+    "@types/node": "^20.10.0"
+  },
+  "dependencies": {}
+}
