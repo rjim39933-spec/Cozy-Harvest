@@ -1,0 +1,37 @@
+// EmployeeSystem - HR, shifts, payroll
+
+export const EMP_DB = [
+  { n: 'Jack Miller', a: 22, pt: 'w_jack', wt: 'fn', wr: 45, ct: ['manual'], pt: ['early', 'chatty'], sh: { ds: ['mon', 'tue', 'wed', 'thu', 'fri'], sh: 8, eh: 16 } },
+  { n: 'Sarah Chen', a: 24, pt: 'w_sarah', wt: 'fn', wr: 50, ct: ['manual'], pt: ['meticulous'], sh: { ds: ['mon', 'tue', 'wed', 'thu', 'fri'], sh: 7, eh: 15 } },
+  { n: "Tommy O'Reilly", a: 21, pt: 'w_tommy', wt: 'fn', wr: 40, ct: ['manual'], pt: ['lead', 'laid'], sh: { ds: ['mon', 'tue', 'wed', 'thu', 'fri', 'sat'], sh: 8, eh: 16 } },
+  { n: 'Mick "Bluey" Robertson', a: 45, pt: 'w_mick', wt: 'fn', wr: 180, ct: ['manual', 'heavy', 'stock'], pt: ['early', 'gentle', 'perf'], sh: { ds: ['mon', 'tue', 'wed', 'thu', 'fri', 'sat'], sh: 5, eh: 17 } },
+  { n: 'Davina "Dave" Patterson', a: 38, pt: 'w_davina', wt: 'fn', wr: 170, ct: ['manual', 'heavy', 'irrig'], pt: ['meticulous', 'early'], sh: { ds: ['mon', 'tue', 'wed', 'thu', 'fri'], sh: 6, eh: 16 } },
+  { n: 'Bazza Thompson', a: 52, pt: 'w_bazza', wt: 'fn', wr: 160, ct: ['manual', 'stock', 'heavy'], pt: ['gentle', 'chatty', 'laid'], sh: { ds: ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'], sh: 6, eh: 18 } },
+  { n: 'Dr. Ellie Nguyen', a: 34, pt: 'w_ellie', wt: 'fn', wr: 220, ct: ['irrig', 'manual'], pt: ['meticulous', 'perf'], sh: { ds: ['mon', 'wed', 'fri'], sh: 8, eh: 16 } },
+  { n: 'Cooper "Coop" Harris', a: 29, pt: 'w_coop', wt: 'fn', wr: 190, ct: ['heavy', 'irrig'], pt: ['lead', 'early'], sh: { ds: ['mon', 'tue', 'wed', 'thu', 'fri', 'sat'], sh: 5, eh: 15 } },
+  { n: 'Prof. Alan Whitfield', a: 61, pt: 'w_alan', wt: 'fn', wr: 280, ct: ['manual', 'irrig', 'heavy', 'stock'], pt: ['perf', 'meticulous', 'gentle'], sh: { ds: ['tue', 'thu'], sh: 9, eh: 15 } }
+];
+
+export class EmployeeManager {
+  constructor() { this.emps = new Map(); this.contracts = new Map(); this.ts = []; this.apps = []; this.nextPay = 14; this.ph = []; this.genApps(); }
+  genApps() { const sh = [...EMP_DB].sort(() => Math.random() - 0.5); for (let i = 0; i < Math.floor(Math.random() * 4) + 5; i++) { const b = sh[i]; this.apps.push({ id: 'emp_' + Date.now() + i, n: b.n, a: b.a, pt: b.pt, wt: b.wt, wr: b.wr, ct: b.ct, pt: b.pt, sh: b.sh, pos: { x: 0, y: 0 }, at: null, cv: null, ft: 0, mor: 70 + Math.floor(Math.random() * 25) - 10, fr: 0, de: 0, qa: null }); } }
+  refresh() { this.apps = []; this.genApps(); }
+  getApps() { return [...this.apps]; }
+  hire(id, wr) { const i = this.apps.findIndex(e => e.id === id); if (i === -1) return null; const e = this.apps.splice(i, 1)[0]; this.contracts.set(e.id, { id: e.id, sd: 0, wr: wr || e.wr, wt: e.wt, hpw: 40, ot: 1.5, bf: ['qtr', 'meal', 'fuel'], act: true }); this.emps.set(e.id, e); return e; }
+  fire(id, rsn) { const e = this.emps.get(id); if (!e) return false; this.finalPay(id); this.emps.delete(id); this.contracts.delete(id); if (rsn !== 'misconduct' && Math.random() < 0.3) { e.fr = 0; e.mor = 50; this.apps.push(e); } return true; }
+  assign(id, task) { const e = this.emps.get(id); if (!e || (e.at && e.at.st === 'in_progress')) return false; if (task.ct && !e.ct.includes(task.ct)) return false; if (!this.onShift(e)) e.mor = Math.max(0, e.mor - 5); task.at = id; task.st = 'in_progress'; task.st = Date.now(); e.at = task; return true; }
+  upd(dt, hr, day) { const hrs = dt / 3600; for (const e of this.emps.values()) this.updE(e, hrs, hr, day); if (day === this.nextPay) { this.payday(day); this.nextPay += 14; } }
+  updE(e, hrs, hr, day) { const os = this.onShift(e); if (os) { e.ft = Math.min(100, e.ft + 5 * hrs); if (e.at && e.at.st === 'in_progress') this.exec(e, hrs); if (e.at) e.mor = Math.min(100, e.mor + 0.1 * hrs); } else { e.ft = Math.max(0, e.ft - 2 * hrs); if (e.ft < 30) e.mor = Math.min(100, e.mor + 0.2 * hrs); } if (e.ft > 80) { e.mor = Math.max(0, e.mor - 0.5 * hrs); if (Math.random() < 0.001 * hrs * (e.ft / 100)) this.inc(e); } for (const t of e.pt) this.trait(e, t, hrs, os); if (os) e.de += hrs / 24; }
+  exec(e, hrs) { const t = e.at; let sm = 1; if (e.ct.includes('heavy') && t.vr) sm *= 1.2; if (e.pt.includes('lead') && t.vr) sm *= 1.25; if (e.pt.includes('perf')) sm *= 0.9; if (e.pt.includes('meticulous') && t.tt === 'maintain') sm *= 1.3; if (e.pt.includes('gentle') && t.tt === 'muster') sm *= 1.2; if (e.ft > 60) sm *= 0.7; t.prg += hrs * sm / (t.ed || 8); t.prg = Math.min(1, t.prg); if (t.prg >= 1) { t.st = 'done'; e.at = null; e.mor = Math.min(100, e.mor + 5); this.log(e.id, t, hrs); } }
+  log(id, t, hrs) { this.ts.push({ id, d: Math.floor(Date.now() / 86400000), hw: hrs, tt: [t.tt], ot: 0, vh: t.vr || null }); }
+  trait(e, tr, hrs, os) { switch (tr) { case 'early': if (os && e.sh.sh <= 6) e.mor = Math.min(100, e.mor + 0.1 * hrs); break; case 'chatty': if (os && Math.random() < 0.01 * hrs) e.mor = Math.min(100, e.mor + 1); break; case 'laid': e.ft = Math.max(0, e.ft - 0.5 * hrs); break; case 'perf': if (e.at && e.at.prg > 0.9) e.mor = Math.min(100, e.mor + 0.2 * hrs); break; } }
+  inc(e) { const inc = [{ t: 'veh', tx: 'Scrape', mh: 10, c: 200 }, { t: 'tool', tx: 'Broke tool', mh: 5, c: 50 }, { t: 'crop', tx: 'Crop damage', mh: 15, c: 300 }, { t: 'inj', tx: 'Injury', mh: 20, c: 500 }]; const i = inc[Math.floor(Math.random() * inc.length)]; e.mor = Math.max(0, e.mor - i.mh); e.hp = Math.max(50, (e.hp || 100) - 10); e.ft = Math.min(100, e.ft + 20); console.log('INC:', e.n, i.tx); }
+  onShift(e) { return true; }
+  payday(day) { let tp = 0; for (const [id, e] of this.emps) { const c = this.contracts.get(id); if (!c) continue; const en = this.ts.filter(x => x.id === id); const rh = en.reduce((s, x) => s + Math.min(x.hw, 8), 0), oh = en.reduce((s, x) => s + Math.max(0, x.hw - 8), 0); let p = 0; if (c.wt === 'fn') { p = c.wr; p += oh * (c.wr / 80) * c.ot; } else { p = rh * c.wr + oh * c.wr * c.ot; } if (e.mor > 80) p *= 1.05; else if (e.mor < 40) p *= 0.95; tp += p; this.ph.push({ d: day, id, n: e.n, rh, oh, gp: p, np: p }); } console.log('PAYDAY $', tp.toFixed(2)); }
+  finalPay(id) { const en = this.ts.filter(x => x.id === id), c = this.contracts.get(id); if (!c) return; const rh = en.reduce((s, x) => s + Math.min(x.hw, 8), 0); let p = c.wt === 'fn' ? c.wr : rh * c.wr; console.log('FINAL', id, '$', p.toFixed(2)); }
+  get(id) { return this.emps.get(id); } all() { return Array.from(this.emps.values()); } onShiftEmps() { return Array.from(this.emps.values()).filter(e => this.onShift(e)); } byCert(c) { return Array.from(this.emps.values()).filter(e => e.ct.includes(c)); } getCon(id) { return this.contracts.get(id); } ph() { return [...this.ph]; } ts(id) { return id ? this.ts.filter(x => x.id === id) : [...this.ts]; }
+  neg(id, off) { const e = this.apps.find(x => x.id === id) || this.emps.get(id); if (!e) return { ok: false }; const mn = e.wr * 0.9, mx = e.wr * 1.3; if (off >= mx) return { ok: true }; if (off >= mn) return { ok: Math.random() < 0.7 }; return { ok: false, co: Math.round(Math.min(mx, e.wr * 1.1)) }; }
+  qtr(id, qid) { const e = this.emps.get(id); if (!e) return false; e.qa = qid; e.mor = Math.min(100, e.mor + 10); return true; }
+  train(id, ct, cost) { const e = this.emps.get(id); if (!e || e.ct.includes(ct)) return false; e.ct.push(ct); e.mor = Math.min(100, e.mor + 15); e.wr = Math.round(e.wr * 1.15); console.log(e.n, 'got', ct); return true; }
+  getEmployeesMap() { return this.emps; }
+}
